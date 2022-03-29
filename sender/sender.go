@@ -19,16 +19,29 @@ type Mail struct {
 	Text       string
 	StartTime  string
 	FinishTime string
-	Clients    []Client
+	Tag        string
+	MobileCode int
 }
 
 type Client struct {
-	Id    int
-	Phone int
-	Text  string
+	Id         int
+	Phone      int
+	Text       string
+	Tag        string
+	MobileCode int
 }
 
-func MakeSend(f func(c Client), c Mail) error {
+type Message struct {
+	MessageId  int
+	Text       string
+	SendTime   string
+	FinishTime string
+	MailId     int
+	ClientId   int
+}
+
+func MakeSend(send func(c Client), c Mail) error {
+	clients := c.Clients
 	stopSend := make(chan struct{})
 	start, err := time.Parse(timeLayout, c.StartTime)
 	if err != nil {
@@ -38,37 +51,23 @@ func MakeSend(f func(c Client), c Mail) error {
 	if err != nil {
 		return err
 	}
-	duration := start.Sub(time.Now())
+	delayBeforeStart := start.Sub(time.Now())
+	sendDuration := finish.Sub(start)
 
 	go func() {
-		go func() {
-			for {
-				needToStop := finish.Sub(time.Now())
-				if needToStop.Seconds() < 0.0 {
-					fmt.Println("Time!")
-					stopSend <- struct{}{}
-					break
-				}
-			}
-		}()
-		time.Sleep(duration)
-
-		clients := c.Clients
-		go func() {
-			for _, c := range clients {
-				go f(c)
-			}
-			for {
-				<-stopSend
-				fmt.Println("Fin")
-				return
-			}
-		}()
-
+		<-time.After(sendDuration)
+		stopSend <- struct{}{}
 	}()
 
-	time.Sleep(time.Hour * 24)
+	time.Sleep(delayBeforeStart)
 
+	go func() {
+		for _, c := range clients {
+			go send(c)
+		}
+		<-stopSend
+		fmt.Println("Fin")
+	}()
 	return nil
 }
 
@@ -78,12 +77,12 @@ func Send(c Client) {
 		log.Fatalf("Error with Marshal: %v\n", err)
 	}
 
-	req, _ := http.NewRequest("POST", url, bytes.NewReader(b))
+	req, err := http.NewRequest("POST", url, bytes.NewReader(b))
 	if err != nil {
 		log.Fatalf("Error with request: %v\n", err)
 	}
 
-	res, _ := http.DefaultClient.Do(req)
+	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Fatalf("Error with make request: %v\n", err)
 	}
@@ -94,11 +93,11 @@ func Send(c Client) {
 func main() {
 	c1 := Client{1, 123, "hello"}
 	c2 := Client{2, 126, "hello"}
-	new := Mail{1, "hello", "Mar 29, 2022 14:46:00 MSK", "Mar 29, 2022 14:46:20 MSK", []Client{c1, c2}}
+	mail1 := Mail{1, "hello", "Mar 29, 2022 20:43:00 MSK", "Mar 29, 2022 20:43:20 MSK", []Client{c1, c2}}
 
-	err := MakeSend(Send, new)
+	err := MakeSend(Send, mail1)
 	if err != nil {
-		fmt.Printf("error: %v\n", err)
+		log.Printf("error: %v\n", err)
 	}
 
 	time.Sleep(time.Hour * 24)
