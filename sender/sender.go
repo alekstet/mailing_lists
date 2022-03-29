@@ -51,10 +51,13 @@ func MakeSend(f func(c Client), c Mail) error {
 				}
 			}
 		}()
-		fmt.Println("Before sleep!")
 		time.Sleep(duration)
-		fmt.Println("After sleep!")
+
+		clients := c.Clients
 		go func() {
+			for _, c := range clients {
+				go f(c)
+			}
 			for {
 				<-stopSend
 				fmt.Println("Fin")
@@ -62,11 +65,6 @@ func MakeSend(f func(c Client), c Mail) error {
 			}
 		}()
 
-		fmt.Println(len(c.Clients))
-		clients := c.Clients
-		for _, c := range clients {
-			f(c)
-		}
 	}()
 
 	time.Sleep(time.Hour * 24)
@@ -96,7 +94,7 @@ func Send(c Client) {
 func main() {
 	c1 := Client{1, 123, "hello"}
 	c2 := Client{2, 126, "hello"}
-	new := Mail{1, "hello", "Mar 29, 2022 14:30:00 MSK", "Mar 29, 2022 14:30:20 MSK", []Client{c1, c2}}
+	new := Mail{1, "hello", "Mar 29, 2022 14:46:00 MSK", "Mar 29, 2022 14:46:20 MSK", []Client{c1, c2}}
 
 	err := MakeSend(Send, new)
 	if err != nil {
