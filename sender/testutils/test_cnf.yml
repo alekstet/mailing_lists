@@ -1,0 +1,6 @@
+ip: 127.0.0.1
+port: 8080
+db: "./database/db_test.db"
+sql_init_path: "./testutils/test_init.sql"
+
+    
